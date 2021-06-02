@@ -10,7 +10,7 @@ inst_reqs = ["starlette", "cramjam"]
 
 # Extra Requirements
 extra_reqs = {
-    "test": ["pytest", "pytest-cov", "requests"],
+    "test": ["pytest", "pytest-cov", "requests", "brotlipy"],
     "dev": ["pytest", "pytest-cov", "pre-commit"],
 }
 
