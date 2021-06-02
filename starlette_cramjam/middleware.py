@@ -126,11 +126,13 @@ class CompressionResponder:
             body = message.get("body", b"")
             more_body = message.get("more_body", False)
 
-            if not body:
+            self.buffer.write(self.compressor.compress(body))
+            if not more_body:
+                message["body"] = self.buffer.getvalue()
+                self.buffer.close()
                 await self.send(message)
                 return
 
-            self.buffer.write(self.compressor.compress(body))
             message["body"] = self.buffer.getvalue()
             self.buffer.seek(0)
             self.buffer.truncate()

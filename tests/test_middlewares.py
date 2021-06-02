@@ -47,9 +47,9 @@ def test_streaming_response(method):
 
     response = client.get("/", headers={"accept-encoding": method})
     assert response.status_code == 200
-    assert response.text == "x" * 4000
     assert response.headers["Content-Encoding"] == method
     assert "Content-Length" not in response.headers
+    assert response.text == "x" * 4000
 
 
 def test_not_in_accept_encoding():
