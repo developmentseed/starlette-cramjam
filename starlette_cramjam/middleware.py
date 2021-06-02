@@ -108,10 +108,13 @@ class CompressionResponder:
                 headers = MutableHeaders(raw=self.initial_message["headers"])
                 headers["Content-Encoding"] = self.encoding_name
                 headers.add_vary_header("Accept-Encoding")
+
+                # https://gist.github.com/CMCDragonkai/6bfade6431e9ffb7fe88#content-length
+                # Content-Length header will not allow streaming
                 del headers["Content-Length"]
 
                 self.buffer.write(self.compressor.compress(body))
-                message["body"] = self.compressor.compress(body)
+                message["body"] = self.buffer.getvalue()
                 self.buffer.seek(0)
                 self.buffer.truncate()
 
@@ -128,27 +131,11 @@ class CompressionResponder:
                 return
 
             self.buffer.write(self.compressor.compress(body))
-
-            if not more_body:
-                message["body"] = self.buffer.getvalue()
-                self.buffer.close()
-                await self.send(message)
-                return
-
             message["body"] = self.buffer.getvalue()
             self.buffer.seek(0)
             self.buffer.truncate()
+
             await self.send(message)
-
-            # self.buffer.write(self.compressor.compress(body))
-            # if not more_body:
-            #     self.gzip_file.close()
-
-            # message["body"] = self.gzip_buffer.getvalue()
-            # self.gzip_buffer.seek(0)
-            # self.gzip_buffer.truncate()
-
-            # await self.send(message)
 
 
 async def unattached_send(message: Message) -> None:
