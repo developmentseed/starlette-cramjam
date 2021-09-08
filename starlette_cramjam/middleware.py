@@ -1,6 +1,6 @@
 """starlette_cramjam.middleware."""
 
-import io
+import re
 from typing import Any, Optional, Set
 
 import cramjam
@@ -19,7 +19,7 @@ class CompressionMiddleware:
     ) -> None:
         self.app = app
         self.minimum_size = minimum_size
-        self.exclude_path = exclude_path or set()
+        self.exclude_path = {re.compile(p) for p in exclude_path or set()}
         self.exclude_mediatype = exclude_mediatype or set()
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
@@ -27,26 +27,40 @@ class CompressionMiddleware:
             headers = Headers(scope=scope)
             accepted_encoding = headers.get("Accept-Encoding", "")
 
-            if "br" in accepted_encoding:
+            if self.exclude_path:
+                skip = any([x.fullmatch(scope["path"]) for x in self.exclude_path])
+            else:
+                skip = False
+
+            if not skip and "br" in accepted_encoding:
                 responder = CompressionResponder(
-                    self.app, cramjam.brotli.Compressor(), "br", self.minimum_size,
+                    self.app,
+                    cramjam.brotli.Compressor(),
+                    "br",
+                    self.minimum_size,
+                    self.exclude_mediatype,
                 )
                 await responder(scope, receive, send)
                 return
 
-            elif "gzip" in accepted_encoding:
+            elif not skip and "gzip" in accepted_encoding:
                 responder = CompressionResponder(
-                    self.app, cramjam.gzip.Compressor(), "gzip", self.minimum_size,
+                    self.app,
+                    cramjam.gzip.Compressor(),
+                    "gzip",
+                    self.minimum_size,
+                    self.exclude_mediatype,
                 )
                 await responder(scope, receive, send)
                 return
 
-            elif "deflate" in accepted_encoding:
+            elif not skip and "deflate" in accepted_encoding:
                 responder = CompressionResponder(
                     self.app,
                     cramjam.deflate.Compressor(),
                     "deflate",
                     self.minimum_size,
+                    self.exclude_mediatype,
                 )
                 await responder(scope, receive, send)
                 return
@@ -56,18 +70,22 @@ class CompressionMiddleware:
 
 class CompressionResponder:
     def __init__(
-        self, app: ASGIApp, compressor: Any, encoding_name: str, minimum_size: int
+        self,
+        app: ASGIApp,
+        compressor: Any,
+        encoding_name: str,
+        minimum_size: int,
+        exclude_mediatype: Set[str],
     ) -> None:
 
         self.app = app
         self.compressor = compressor
         self.encoding_name = encoding_name
         self.minimum_size = minimum_size
-
+        self.exclude_mediatype = exclude_mediatype
         self.send = unattached_send  # type: Send
         self.initial_message = {}  # type: Message
         self.started = False
-        self.buffer = io.BytesIO()
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         self.send = send
@@ -87,7 +105,14 @@ class CompressionResponder:
             body = message.get("body", b"")
             more_body = message.get("more_body", False)
 
-            if len(body) < self.minimum_size and not more_body:
+            headers = MutableHeaders(raw=self.initial_message["headers"])
+
+            if headers.get("Content-Type") in self.exclude_mediatype:
+                # Don't apply compression if mediatype should be excluded
+                await self.send(self.initial_message)
+                await self.send(message)
+
+            elif len(body) < self.minimum_size and not more_body:
                 # Don't apply compression to small outgoing responses.
                 await self.send(self.initial_message)
                 await self.send(message)
@@ -95,10 +120,8 @@ class CompressionResponder:
             elif not more_body:
                 # Standard compressed response.
                 self.compressor.compress(body)
-                self.buffer.write(self.compressor.finish())
-                body = self.buffer.getvalue()
+                body = bytes(self.compressor.finish())
 
-                headers = MutableHeaders(raw=self.initial_message["headers"])
                 headers["Content-Encoding"] = self.encoding_name
                 headers["Content-Length"] = str(len(body))
                 headers.add_vary_header("Accept-Encoding")
@@ -109,7 +132,6 @@ class CompressionResponder:
 
             else:
                 # Initial body in streaming compressed response.
-                headers = MutableHeaders(raw=self.initial_message["headers"])
                 headers["Content-Encoding"] = self.encoding_name
                 headers.add_vary_header("Accept-Encoding")
 
@@ -117,10 +139,7 @@ class CompressionResponder:
                 # Content-Length header will not allow streaming
                 del headers["Content-Length"]
                 self.compressor.compress(body)
-                self.buffer.write(self.compressor.flush())
-                message["body"] = self.buffer.getvalue()
-                self.buffer.seek(0)
-                self.buffer.truncate()
+                message["body"] = bytes(self.compressor.flush())
 
                 await self.send(self.initial_message)
                 await self.send(message)
@@ -132,15 +151,10 @@ class CompressionResponder:
 
             self.compressor.compress(body)
             if not more_body:
-                self.buffer.write(self.compressor.finish())
-                message["body"] = self.buffer.getvalue()
-                self.buffer.close()
+                message["body"] = bytes(self.compressor.finish())
                 await self.send(message)
                 return
-            self.buffer.write(self.compressor.flush())
-            message["body"] = self.buffer.getvalue()
-            self.buffer.seek(0)
-            self.buffer.truncate()
+            message["body"] = bytes(self.compressor.flush())
 
             await self.send(message)
 

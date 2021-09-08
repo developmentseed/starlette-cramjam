@@ -6,7 +6,7 @@ This tests are the same as the ones from starlette.tests.middleware.test_gzip bu
 import pytest
 
 from starlette.applications import Starlette
-from starlette.responses import PlainTextResponse, StreamingResponse
+from starlette.responses import PlainTextResponse, Response, StreamingResponse
 from starlette.testclient import TestClient
 from starlette_cramjam.middleware import CompressionMiddleware
 
@@ -84,3 +84,51 @@ def test_ignored_for_small_responses():
     assert response.text == "OK"
     assert "Content-Encoding" not in response.headers
     assert int(response.headers["Content-Length"]) == 2
+
+
+@pytest.mark.parametrize("method", ["br", "gzip", "deflate"])
+def test_compressed_skip_on_content_type(method):
+    app = Starlette()
+
+    app.add_middleware(CompressionMiddleware, exclude_mediatype={"image/png"})
+
+    @app.route("/")
+    def homepage(request):
+        return Response(b"foo" * 1000, status_code=200, media_type="image/png")
+
+    @app.route("/foo")
+    def foo(request):
+        return Response(b"foo" * 1000, status_code=200, media_type="image/jpeg")
+
+    client = TestClient(app)
+    response = client.get("/", headers={"accept-encoding": method})
+    assert response.status_code == 200
+    assert "Content-Encoding" not in response.headers
+
+    response = client.get("/foo", headers={"accept-encoding": method})
+    assert response.status_code == 200
+    assert response.headers["Content-Encoding"] == method
+
+
+@pytest.mark.parametrize("method", ["br", "gzip", "deflate"])
+def test_compressed_skip_on_path(method):
+    app = Starlette()
+
+    app.add_middleware(CompressionMiddleware, exclude_path={"/f.+"}, minimum_size=0)
+
+    @app.route("/")
+    def homepage(request):
+        return PlainTextResponse("yep", status_code=200)
+
+    @app.route("/foo")
+    def foo(request):
+        return Response("also yep but with /foo", status_code=200)
+
+    client = TestClient(app)
+    response = client.get("/", headers={"accept-encoding": method})
+    assert response.status_code == 200
+    assert response.headers["Content-Encoding"] == method
+
+    response = client.get("/foo", headers={"accept-encoding": method})
+    assert response.status_code == 200
+    assert "Content-Encoding" not in response.headers
