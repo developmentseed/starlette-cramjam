@@ -114,7 +114,7 @@ def test_compressed_skip_on_content_type(method):
 def test_compressed_skip_on_path(method):
     app = Starlette()
 
-    app.add_middleware(CompressionMiddleware, exclude_path={"/f.+"}, minimum_size=0)
+    app.add_middleware(CompressionMiddleware, exclude_path={"^/f.+"}, minimum_size=0)
 
     @app.route("/")
     def homepage(request):
@@ -124,8 +124,16 @@ def test_compressed_skip_on_path(method):
     def foo(request):
         return Response("also yep but with /foo", status_code=200)
 
+    @app.route("/dontskip/foo")
+    def foo2(request):
+        return Response("also yep but with /dontskip/foo", status_code=200)
+
     client = TestClient(app)
     response = client.get("/", headers={"accept-encoding": method})
+    assert response.status_code == 200
+    assert response.headers["Content-Encoding"] == method
+
+    response = client.get("/dontskip/foo", headers={"accept-encoding": method})
     assert response.status_code == 200
     assert response.headers["Content-Encoding"] == method
 
