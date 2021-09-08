@@ -17,7 +17,6 @@ extra_reqs = {
 
 setup(
     name="starlette_cramjam",
-    version="0.1.0",
     description=u"Cramjam integration for Starlette ASGI framework.",
     long_description=readme,
     long_description_content_type="text/markdown",
