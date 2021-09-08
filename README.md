@@ -27,6 +27,11 @@
 
 ---
 
+The `starlette-cramjam` middleware aims to provide a unique Compression middleware to support **Brotli**, **GZip** and **Deflate** compression algorithms with a minimal requirement.
+
+The middleware will compress responses for any request that includes "br", "gzip" or "deflate" in the Accept-Encoding header.
+
+As for the official `Starlette` middleware, the one provided by `starlette-cramjam will handle both standard and streaming responses.
 
 ## Installation
 
@@ -46,14 +51,21 @@ $ pip install https://github.com/developmentseed/starlette-cramjam.git
 
 ## Usage
 
-```python
+The following arguments are supported:
 
+- **minimum_size** (Integer) - Do not compress responses that are smaller than this minimum size in bytes. Defaults to `500`.
+- **exclude_path** (Set of string) - Do not compress responses in response to specific `path` requests. Entries have to be valid regex expressions. Defaults to `{}`.
+- **exclude_mediatype** (Set of string) - Do not compress responses of specific media type (e.g `image/png`). Defaults to `{}`.
+
+#### Minimal (defaults) example
+
+```python
 import uvicorn
 
 from starlette.applications import Starlette
 from starlette.responses import PlainTextResponse
 
-from starlette_cramjam import CompressionMiddleware
+from starlette_cramjam.middleware import CompressionMiddleware
 
 # create application
 app = Starlette()
@@ -69,5 +81,43 @@ def index(request):
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
+```
 
+#### Using options
+
+```python
+import uvicorn
+
+from starlette.applications import Starlette
+from starlette.responses import PlainTextResponse, Response
+
+from starlette_cramjam.middleware import CompressionMiddleware
+
+# create application
+app = Starlette()
+
+# register the CompressionMiddleware
+app.add_middleware(
+    CompressionMiddleware,
+    minimum_size=0,  # should compress everything
+    exclude_path={"^/foo$"},  # do not compress response for the `/foo` request
+    exclude_mediatype={"image/jpeg"},  # do not compress jpeg
+)
+
+
+@app.route("/")
+def index(request):
+    return PlainTextResponse("Hello World")
+
+@app.route("/image")
+def foo(request):
+    return Response(b"This is a fake body", status_code=200, media_type="image/jpeg")
+
+@app.route("/foo")
+def foo(request):
+    return PlainTextResponse("Do not compress me.")
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 ```

@@ -17,6 +17,15 @@ class CompressionMiddleware:
         exclude_path: Optional[Set[str]] = None,
         exclude_mediatype: Optional[Set[str]] = None,
     ) -> None:
+        """Init CompressionMiddleware.
+
+        Args:
+            app (ASGIApp): starlette/FastAPI application.
+            minimum_size: Minimal size, in bytes, for appliying compression. Defaults to 500.
+            exclude_path (set): Set of regex expression to use to exclude compression for request path. Defaults to {}.
+            exclude_mediatype (set): Set of media-type for which to exclude compression. Defaults to {}.
+
+        """
         self.app = app
         self.minimum_size = minimum_size
         self.exclude_path = {re.compile(p) for p in exclude_path or set()}
