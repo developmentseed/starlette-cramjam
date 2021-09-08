@@ -43,7 +43,10 @@ class CompressionMiddleware:
 
             elif "deflate" in accepted_encoding:
                 responder = CompressionResponder(
-                    self.app, cramjam.deflate.Compressor(), "deflate", self.minimum_size,
+                    self.app,
+                    cramjam.deflate.Compressor(),
+                    "deflate",
+                    self.minimum_size,
                 )
                 await responder(scope, receive, send)
                 return
