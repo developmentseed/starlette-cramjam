@@ -8,7 +8,7 @@ import pytest
 from starlette.applications import Starlette
 from starlette.responses import PlainTextResponse, StreamingResponse
 from starlette.testclient import TestClient
-from starlette_cramjam import CompressionMiddleware
+from starlette_cramjam.middleware import CompressionMiddleware
 
 
 @pytest.mark.parametrize("method", ["br", "gzip", "deflate"])
