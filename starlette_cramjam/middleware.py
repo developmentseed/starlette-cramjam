@@ -29,21 +29,24 @@ class CompressionMiddleware:
 
             if "br" in accepted_encoding:
                 responder = CompressionResponder(
-                    self.app, cramjam.brotli, "br", self.minimum_size,
+                    self.app, cramjam.brotli.Compressor(), "br", self.minimum_size,
                 )
                 await responder(scope, receive, send)
                 return
 
             elif "gzip" in accepted_encoding:
                 responder = CompressionResponder(
-                    self.app, cramjam.gzip, "gzip", self.minimum_size,
+                    self.app, cramjam.gzip.Compressor(), "gzip", self.minimum_size,
                 )
                 await responder(scope, receive, send)
                 return
 
             elif "deflate" in accepted_encoding:
                 responder = CompressionResponder(
-                    self.app, cramjam.deflate, "deflate", self.minimum_size,
+                    self.app,
+                    cramjam.deflate.Compressor(),
+                    "deflate",
+                    self.minimum_size,
                 )
                 await responder(scope, receive, send)
                 return
@@ -91,7 +94,8 @@ class CompressionResponder:
 
             elif not more_body:
                 # Standard compressed response.
-                self.buffer.write(self.compressor.compress(body))
+                self.compressor.compress(body)
+                self.buffer.write(self.compressor.finish())
                 body = self.buffer.getvalue()
 
                 headers = MutableHeaders(raw=self.initial_message["headers"])
@@ -112,8 +116,8 @@ class CompressionResponder:
                 # https://gist.github.com/CMCDragonkai/6bfade6431e9ffb7fe88#content-length
                 # Content-Length header will not allow streaming
                 del headers["Content-Length"]
-
-                self.buffer.write(self.compressor.compress(body))
+                self.compressor.compress(body)
+                self.buffer.write(self.compressor.flush())
                 message["body"] = self.buffer.getvalue()
                 self.buffer.seek(0)
                 self.buffer.truncate()
@@ -126,13 +130,14 @@ class CompressionResponder:
             body = message.get("body", b"")
             more_body = message.get("more_body", False)
 
-            self.buffer.write(self.compressor.compress(body))
+            self.compressor.compress(body)
             if not more_body:
+                self.buffer.write(self.compressor.finish())
                 message["body"] = self.buffer.getvalue()
                 self.buffer.close()
                 await self.send(message)
                 return
-
+            self.buffer.write(self.compressor.flush())
             message["body"] = self.buffer.getvalue()
             self.buffer.seek(0)
             self.buffer.truncate()
