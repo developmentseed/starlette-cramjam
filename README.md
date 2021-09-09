@@ -31,7 +31,9 @@ The `starlette-cramjam` middleware aims to provide a unique Compression middlewa
 
 The middleware will compress responses for any request that includes "br", "gzip" or "deflate" in the Accept-Encoding header.
 
-As for the official `Starlette` middleware, the one provided by `starlette-cramjam will handle both standard and streaming responses.
+As for the official `Starlette` middleware, the one provided by `starlette-cramjam` will handle both standard and streaming responses.
+
+`stralette-cramjam` is built on top of [pyrus-cramjam](https://github.com/milesgranger/pyrus-cramjam) an *Extremely thin Python bindings to de/compression algorithms in Rust*.
 
 ## Installation
 
@@ -121,3 +123,21 @@ def foo(request):
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
 ```
+
+## Changes
+
+See [CHANGES.md](https://github.com/developmentseed/starlette-cramjam/blob/master/CHANGES.md).
+
+## Contribution & Development
+
+See [CONTRIBUTING.md](https://github.com/developmentseed/starlette-cramjam/blob/master/CONTRIBUTING.md)
+
+## License
+
+See [LICENSE](https://github.com/developmentseed/starlette-cramjam/blob/master/LICENSE)
+
+## Authors
+
+Created by [Development Seed](<http://developmentseed.org>)
+
+See [contributors](https://github.com/developmentseed/starlette-cramjam/graphs/contributors) for a listing of individual contributors.
