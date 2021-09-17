@@ -6,7 +6,7 @@ with open("README.md") as f:
     readme = f.read()
 
 # Runtime Requirements.
-inst_reqs = ["starlette", "cramjam>=2.4.0-rc2,<2.5"]
+inst_reqs = ["starlette", "cramjam>=2.4.0,<2.5"]
 
 # Extra Requirements
 extra_reqs = {

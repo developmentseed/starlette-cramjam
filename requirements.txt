@@ -1,2 +1,2 @@
 starlette
-cramjam>=2.4.0-rc2,<2.5
+cramjam>=2.4.0,<2.5
