@@ -140,3 +140,25 @@ def test_compressed_skip_on_path(method):
     response = client.get("/foo", headers={"accept-encoding": method})
     assert response.status_code == 200
     assert "Content-Encoding" not in response.headers
+
+
+@pytest.mark.parametrize(
+    "exclude_encoder,expected",
+    [
+        ({"br", "gzip"}, "deflate"),
+        ({"br", "deflate"}, "gzip"),
+        ({"gzip", "deflate"}, "br"),
+    ],
+)
+def test_compressed_skip_on_encoder(exclude_encoder, expected):
+    app = Starlette()
+
+    app.add_middleware(CompressionMiddleware, exclude_encoder=exclude_encoder)
+
+    @app.route("/")
+    def homepage(request):
+        return PlainTextResponse("x" * 4000, status_code=200)
+
+    client = TestClient(app)
+    response = client.get("/", headers={"accept-encoding": "br,gzip,deflate"})
+    assert response.headers["Content-Encoding"] == expected
