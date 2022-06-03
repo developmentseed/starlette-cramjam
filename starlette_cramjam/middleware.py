@@ -4,12 +4,13 @@ import re
 from typing import Any, Optional, Set
 
 import cramjam
-
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 
 class CompressionMiddleware:
+    """Starlette Cramjam MiddleWare."""
+
     def __init__(
         self,
         app: ASGIApp,
@@ -32,6 +33,7 @@ class CompressionMiddleware:
         self.exclude_mediatype = exclude_mediatype or set()
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Handle call."""
         if scope["type"] == "http":
             headers = Headers(scope=scope)
             accepted_encoding = headers.get("Accept-Encoding", "")
@@ -78,6 +80,8 @@ class CompressionMiddleware:
 
 
 class CompressionResponder:
+    """Responder class."""
+
     def __init__(
         self,
         app: ASGIApp,
@@ -86,7 +90,7 @@ class CompressionResponder:
         minimum_size: int,
         exclude_mediatype: Set[str],
     ) -> None:
-
+        """Init."""
         self.app = app
         self.compressor = compressor
         self.encoding_name = encoding_name
@@ -97,11 +101,12 @@ class CompressionResponder:
         self.started = False
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Handle call."""
         self.send = send
         await self.app(scope, receive, self.send_with_compression)
 
     async def send_with_compression(self, message: Message) -> None:
-
+        """Compress response."""
         message_type = message["type"]
 
         if message_type == "http.response.start":
@@ -169,4 +174,5 @@ class CompressionResponder:
 
 
 async def unattached_send(message: Message) -> None:
+    """Unable to send."""
     raise RuntimeError("send awaitable not set")  # pragma: no cover

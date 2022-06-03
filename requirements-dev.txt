@@ -1,8 +1,0 @@
-starlette
-cramjam>=2.4.0,<2.5
-
-pytest
-pytest-cov
-pre-commit
-brotlipy
-requests

@@ -1,0 +1,64 @@
+[project]
+name = "starlette-cramjam"
+description = "Cramjam integration for Starlette ASGI framework."
+readme = "README.md"
+requires-python = ">=3.6"
+license = {file = "LICENSE"}
+authors = [
+    {name = "Vincent Sarago", email = "vincent@developmentseed.com"},
+]
+keywords = ["Cramjam", "Compression", "ASGI", "Starlette"]
+classifiers = [
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Typing :: Typed",
+]
+dynamic = ["version"]
+dependencies = ["starlette", "cramjam>=2.4.0,<2.5"]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-cov",
+    "requests",
+    "brotlipy",
+]
+dev = [
+    "pre-commit",
+]
+
+[project.urls]
+Source = "https://github.com/developmentseed/starlette-cramjam"
+
+[build-system]
+requires = ["flit>=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.flit.module]
+name = "starlette_cramjam"
+
+[tool.flit.sdist]
+exclude = [
+    "tests/",
+    ".github/",
+    "CHANGES.md",
+    "CONTRIBUTING.md",
+]
+
+[tool.isort]
+profile = "black"
+known_first_party = ["starlette_cramjam"]
+known_third_party = ["starlette", "cramjam"]
+default_section = "THIRDPARTY"
+
+[tool.mypy]
+no_strict_optional = "True"
+
+[tool.pydocstyle]
+select = "D1"
+match = "(?!test).*.py"
