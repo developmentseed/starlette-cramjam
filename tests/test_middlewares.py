@@ -4,10 +4,10 @@ This tests are the same as the ones from starlette.tests.middleware.test_gzip bu
 
 """
 import pytest
-
 from starlette.applications import Starlette
 from starlette.responses import PlainTextResponse, Response, StreamingResponse
 from starlette.testclient import TestClient
+
 from starlette_cramjam.middleware import CompressionMiddleware
 
 
