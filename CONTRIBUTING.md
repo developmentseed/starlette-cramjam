@@ -7,7 +7,13 @@ Issues and pull requests are more than welcome.
 ```bash
 $ git clone https://github.com/developmentseed/starlette-cramjam.git
 $ cd starlette-cramjam
-$ pip install -e .[dev]
+$ pip install -e .["test,dev"]
+```
+
+You can then run the tests with the following command:
+
+```python
+python -m pytest --cov starlette_cramjam --cov-report xml --cov-report term-missing
 ```
 
 ### pre-commit
