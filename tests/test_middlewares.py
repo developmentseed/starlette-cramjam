@@ -9,7 +9,7 @@ from starlette.responses import PlainTextResponse, Response, StreamingResponse
 from starlette.testclient import TestClient
 
 from starlette_cramjam.compression import Compression
-from starlette_cramjam.middleware import CompressionMiddleware
+from starlette_cramjam.middleware import CompressionMiddleware, get_compression_backend
 
 
 @pytest.mark.parametrize("method", ["br", "gzip", "deflate"])
@@ -164,3 +164,35 @@ def test_compressed_skip_on_encoder(compression, expected):
     client = TestClient(app)
     response = client.get("/", headers={"accept-encoding": "br,gzip,deflate"})
     assert response.headers["Content-Encoding"] == expected
+
+
+@pytest.mark.parametrize(
+    "compression,header,expected",
+    [
+        # deflate preferred but only gzip available
+        ([Compression.gzip], "deflate, gzip;q=0.8", Compression.gzip),
+        # deflate preferred and available
+        (
+            [Compression.gzip, Compression.deflate],
+            "deflate, gzip;q=0.8",
+            Compression.deflate,
+        ),
+        # asking for deflate or gzip but only br is available
+        ([Compression.br], "deflate, gzip;q=0.8", None),
+        # no accepted-encoding
+        ([Compression.br], "", None),
+        # br is prefered and available
+        (
+            [Compression.gzip, Compression.br, Compression.deflate],
+            "br;q=1.0, gzip;q=0.8",
+            Compression.br,
+        ),
+        # br and gzip are equally preferred but gzip is the first available
+        ([Compression.gzip, Compression.br], "br;q=1.0, gzip;q=1.0", Compression.gzip),
+        # br and gzip are equally preferred but br is the first available
+        ([Compression.br, Compression.gzip], "br;q=1.0, gzip;q=1.0", Compression.br),
+    ],
+)
+def test_get_compression_backend(compression, header, expected):
+    """Make sure we use the right compression."""
+    assert get_compression_backend(header, compression) == expected

@@ -8,11 +8,47 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from starlette_cramjam.compression import Compression
 
+ACCEPT_ENCODING_PATTERN = r"^(?P<compression>\w+)(;q=(?P<qvalue>[0-1]*([.][0-9]+)?))?"
+
 DEFAULT_BACKENDS = [
     Compression.gzip,
     Compression.deflate,
     Compression.br,
 ]
+
+
+def get_compression_backend(
+    accepted_encoding: str, compression: List[Compression]
+) -> Optional[Compression]:
+    """Return Compression backend based on default compression and accepted preference.
+
+    Links:
+    - https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html
+    - https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding
+
+    """
+    # Parse Accepted-Encoding value `gzip, deflate;q=0.1`
+    encoding_values = []
+    for encoding in accepted_encoding.replace(" ", "").split(","):
+        matched = re.match(ACCEPT_ENCODING_PATTERN, encoding)
+        if matched:
+            name, q = matched.groupdict().values()
+            quality = float(q) if q else 1.0
+            encoding_values.append((name, quality))
+
+    # Create Preference matrix
+    encoding_preference = {
+        v: [n for (n, q) in encoding_values if q == v]
+        for v in sorted({q for _, q in encoding_values}, reverse=True)
+    }
+
+    # Loop through available compression and encoding preference
+    for _, pref in encoding_preference.items():
+        for backend in compression:
+            if backend.name in pref:
+                return backend
+
+    return None
 
 
 class CompressionMiddleware:
@@ -53,17 +89,17 @@ class CompressionMiddleware:
             else:
                 skip = False
 
-            for backend in self.compression:
-                if not skip and backend.name in accepted_encoding:
-                    responder = CompressionResponder(
-                        self.app,
-                        backend.compress.Compressor(),
-                        backend.name,
-                        self.minimum_size,
-                        self.exclude_mediatype,
-                    )
-                    await responder(scope, receive, send)
-                    return
+            backend = get_compression_backend(accepted_encoding, self.compression)
+            if not skip and backend:
+                responder = CompressionResponder(
+                    self.app,
+                    backend.compress.Compressor(),
+                    backend.name,
+                    self.minimum_size,
+                    self.exclude_mediatype,
+                )
+                await responder(scope, receive, send)
+                return
 
         await self.app(scope, receive, send)
 
