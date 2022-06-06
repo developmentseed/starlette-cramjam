@@ -8,6 +8,7 @@ from starlette.applications import Starlette
 from starlette.responses import PlainTextResponse, Response, StreamingResponse
 from starlette.testclient import TestClient
 
+from starlette_cramjam.compression import Compression
 from starlette_cramjam.middleware import CompressionMiddleware
 
 
@@ -143,17 +144,18 @@ def test_compressed_skip_on_path(method):
 
 
 @pytest.mark.parametrize(
-    "exclude_encoder,expected",
+    "compression,expected",
     [
-        ({"br", "gzip"}, "deflate"),
-        ({"br", "deflate"}, "gzip"),
-        ({"gzip", "deflate"}, "br"),
+        ([], "gzip"),
+        ([Compression.gzip], "gzip"),
+        ([Compression.br, Compression.gzip], "br"),
+        ([Compression.gzip, Compression.br], "gzip"),
     ],
 )
-def test_compressed_skip_on_encoder(exclude_encoder, expected):
+def test_compressed_skip_on_encoder(compression, expected):
     app = Starlette()
 
-    app.add_middleware(CompressionMiddleware, exclude_encoder=exclude_encoder)
+    app.add_middleware(CompressionMiddleware, compression=compression)
 
     @app.route("/")
     def homepage(request):

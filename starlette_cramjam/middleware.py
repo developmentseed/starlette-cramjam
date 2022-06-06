@@ -1,11 +1,18 @@
 """starlette_cramjam.middleware."""
 
 import re
-from typing import Any, Optional, Set
+from typing import Any, List, Optional, Set
 
-import cramjam
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+from starlette_cramjam.compression import Compression
+
+DEFAULT_BACKENDS = [
+    Compression.gzip,
+    Compression.deflate,
+    Compression.br,
+]
 
 
 class CompressionMiddleware:
@@ -15,7 +22,7 @@ class CompressionMiddleware:
         self,
         app: ASGIApp,
         minimum_size: int = 500,
-        exclude_encoder: Optional[Set[str]] = None,
+        compression: Optional[List[Compression]] = None,
         exclude_path: Optional[Set[str]] = None,
         exclude_mediatype: Optional[Set[str]] = None,
     ) -> None:
@@ -24,16 +31,16 @@ class CompressionMiddleware:
         Args:
             app (ASGIApp): starlette/FastAPI application.
             minimum_size: Minimal size, in bytes, for appliying compression. Defaults to 500.
-            exclude_encoder (set): Set of encoder to be disabled.
+            compression (list): List of available compression backend. Order will define the backend preference.
             exclude_path (set): Set of regex expression to use to exclude compression for request path. Defaults to {}.
             exclude_mediatype (set): Set of media-type for which to exclude compression. Defaults to {}.
 
         """
         self.app = app
         self.minimum_size = minimum_size
-        self.exclude_encoder = exclude_encoder or set()
         self.exclude_path = {re.compile(p) for p in exclude_path or set()}
         self.exclude_mediatype = exclude_mediatype or set()
+        self.compression = compression or DEFAULT_BACKENDS
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Handle call."""
@@ -46,50 +53,17 @@ class CompressionMiddleware:
             else:
                 skip = False
 
-            if (
-                not skip
-                and "br" not in self.exclude_encoder
-                and "br" in accepted_encoding
-            ):
-                responder = CompressionResponder(
-                    self.app,
-                    cramjam.brotli.Compressor(),
-                    "br",
-                    self.minimum_size,
-                    self.exclude_mediatype,
-                )
-                await responder(scope, receive, send)
-                return
-
-            elif (
-                not skip
-                and "gzip" not in self.exclude_encoder
-                and "gzip" in accepted_encoding
-            ):
-                responder = CompressionResponder(
-                    self.app,
-                    cramjam.gzip.Compressor(),
-                    "gzip",
-                    self.minimum_size,
-                    self.exclude_mediatype,
-                )
-                await responder(scope, receive, send)
-                return
-
-            elif (
-                not skip
-                and "deflate" not in self.exclude_encoder
-                and "deflate" in accepted_encoding
-            ):
-                responder = CompressionResponder(
-                    self.app,
-                    cramjam.deflate.Compressor(),
-                    "deflate",
-                    self.minimum_size,
-                    self.exclude_mediatype,
-                )
-                await responder(scope, receive, send)
-                return
+            for backend in self.compression:
+                if not skip and backend.name in accepted_encoding:
+                    responder = CompressionResponder(
+                        self.app,
+                        backend.compress.Compressor(),
+                        backend.name,
+                        self.minimum_size,
+                        self.exclude_mediatype,
+                    )
+                    await responder(scope, receive, send)
+                    return
 
         await self.app(scope, receive, send)
 

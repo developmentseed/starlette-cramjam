@@ -55,6 +55,7 @@ $ pip install https://github.com/developmentseed/starlette-cramjam.git
 
 The following arguments are supported:
 
+- **compression** (List of Compression) - List of available compression algorithm. **This list also defines the order of preference**. Defaults to `[Compression.gzip, Compression.deflate, Compression.br]`,
 - **minimum_size** (Integer) - Do not compress responses that are smaller than this minimum size in bytes. Defaults to `500`.
 - **exclude_path** (Set of string) - Do not compress responses in response to specific `path` requests. Entries have to be valid regex expressions. Defaults to `{}`.
 - **exclude_mediatype** (Set of string) - Do not compress responses of specific media type (e.g `image/png`). Defaults to `{}`.
@@ -93,6 +94,7 @@ import uvicorn
 from starlette.applications import Starlette
 from starlette.responses import PlainTextResponse, Response
 
+from starlette_cramjam.compression import Compression
 from starlette_cramjam.middleware import CompressionMiddleware
 
 # create application
@@ -101,6 +103,7 @@ app = Starlette()
 # register the CompressionMiddleware
 app.add_middleware(
     CompressionMiddleware,
+    compression=[Compression.gzip],  # Only support `gzip`
     minimum_size=0,  # should compress everything
     exclude_path={"^/foo$"},  # do not compress response for the `/foo` request
     exclude_mediatype={"image/jpeg"},  # do not compress jpeg
