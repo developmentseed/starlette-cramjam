@@ -1,3 +1,11 @@
+
+## 0.3.0 (TBD)
+
+- add `compression` parameter to define compression backend and order of preference
+- defaults to `gzip` -> `deflate` -> `br` order of preference (instead of `br` -> `gzip` -> `deflate`)
+- remove `exclude_encoder` parameter **breaking**
+- allow encoding `quality` values (e.g `gzip;0.9, deflate;0.2`)
+
 ## 0.2.0 (2022-06-03)
 
 - switch to `pyproject.toml`

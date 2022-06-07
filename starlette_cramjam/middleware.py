@@ -1,11 +1,66 @@
 """starlette_cramjam.middleware."""
 
 import re
-from typing import Any, Optional, Set
+from typing import Any, List, Optional, Set
 
-import cramjam
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+from starlette_cramjam.compression import Compression
+
+ACCEPT_ENCODING_PATTERN = r"^(?P<compression>[a-z]+|\*)(;q=(?P<qvalue>[\w,.]+))?"
+
+DEFAULT_BACKENDS = [
+    Compression.gzip,
+    Compression.deflate,
+    Compression.br,
+]
+
+
+def get_compression_backend(
+    accepted_encoding: str, compressions: List[Compression]
+) -> Optional[Compression]:
+    """Return Compression backend based on default compression and accepted preference.
+
+    Links:
+    - https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html
+    - https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding
+
+    """
+    # Parse Accepted-Encoding value `gzip, deflate;q=0.1`
+    encoding_values = {}
+    for encoding in accepted_encoding.replace(" ", "").split(","):
+        matched = re.match(ACCEPT_ENCODING_PATTERN, encoding)
+        if matched:
+            name, q = matched.groupdict().values()
+            try:
+                quality = float(q) if q else 1.0
+            except ValueError:
+                quality = 0
+
+            # if quality is 0 we ignore encoding
+            if quality:
+                encoding_values[name] = quality
+
+    print(encoding_values)
+    # Create Preference matrix
+    encoding_preference = {
+        v: [n for (n, q) in encoding_values.items() if q == v]
+        for v in sorted({q for q in encoding_values.values()}, reverse=True)
+    }
+
+    # Loop through available compression and encoding preference
+    for _, pref in encoding_preference.items():
+        for backend in compressions:
+            if backend.name in pref:
+                return backend
+
+    # If no specified encoding is supported but "*" is accepted,
+    # take one of the available compressions.
+    if "*" in encoding_values and compressions:
+        return compressions[0]
+
+    return None
 
 
 class CompressionMiddleware:
@@ -15,7 +70,7 @@ class CompressionMiddleware:
         self,
         app: ASGIApp,
         minimum_size: int = 500,
-        exclude_encoder: Optional[Set[str]] = None,
+        compression: Optional[List[Compression]] = None,
         exclude_path: Optional[Set[str]] = None,
         exclude_mediatype: Optional[Set[str]] = None,
     ) -> None:
@@ -24,16 +79,16 @@ class CompressionMiddleware:
         Args:
             app (ASGIApp): starlette/FastAPI application.
             minimum_size: Minimal size, in bytes, for appliying compression. Defaults to 500.
-            exclude_encoder (set): Set of encoder to be disabled.
+            compression (list): List of available compression backend. Order will define the backend preference.
             exclude_path (set): Set of regex expression to use to exclude compression for request path. Defaults to {}.
             exclude_mediatype (set): Set of media-type for which to exclude compression. Defaults to {}.
 
         """
         self.app = app
         self.minimum_size = minimum_size
-        self.exclude_encoder = exclude_encoder or set()
         self.exclude_path = {re.compile(p) for p in exclude_path or set()}
         self.exclude_mediatype = exclude_mediatype or set()
+        self.compression = compression or DEFAULT_BACKENDS
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Handle call."""
@@ -46,45 +101,12 @@ class CompressionMiddleware:
             else:
                 skip = False
 
-            if (
-                not skip
-                and "br" not in self.exclude_encoder
-                and "br" in accepted_encoding
-            ):
+            backend = get_compression_backend(accepted_encoding, self.compression)
+            if not skip and backend:
                 responder = CompressionResponder(
                     self.app,
-                    cramjam.brotli.Compressor(),
-                    "br",
-                    self.minimum_size,
-                    self.exclude_mediatype,
-                )
-                await responder(scope, receive, send)
-                return
-
-            elif (
-                not skip
-                and "gzip" not in self.exclude_encoder
-                and "gzip" in accepted_encoding
-            ):
-                responder = CompressionResponder(
-                    self.app,
-                    cramjam.gzip.Compressor(),
-                    "gzip",
-                    self.minimum_size,
-                    self.exclude_mediatype,
-                )
-                await responder(scope, receive, send)
-                return
-
-            elif (
-                not skip
-                and "deflate" not in self.exclude_encoder
-                and "deflate" in accepted_encoding
-            ):
-                responder = CompressionResponder(
-                    self.app,
-                    cramjam.deflate.Compressor(),
-                    "deflate",
+                    backend.compress.Compressor(),
+                    backend.name,
                     self.minimum_size,
                     self.exclude_mediatype,
                 )

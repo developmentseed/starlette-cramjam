@@ -8,7 +8,8 @@ from starlette.applications import Starlette
 from starlette.responses import PlainTextResponse, Response, StreamingResponse
 from starlette.testclient import TestClient
 
-from starlette_cramjam.middleware import CompressionMiddleware
+from starlette_cramjam.compression import Compression
+from starlette_cramjam.middleware import CompressionMiddleware, get_compression_backend
 
 
 @pytest.mark.parametrize("method", ["br", "gzip", "deflate"])
@@ -143,17 +144,18 @@ def test_compressed_skip_on_path(method):
 
 
 @pytest.mark.parametrize(
-    "exclude_encoder,expected",
+    "compression,expected",
     [
-        ({"br", "gzip"}, "deflate"),
-        ({"br", "deflate"}, "gzip"),
-        ({"gzip", "deflate"}, "br"),
+        ([], "gzip"),
+        ([Compression.gzip], "gzip"),
+        ([Compression.br, Compression.gzip], "br"),
+        ([Compression.gzip, Compression.br], "gzip"),
     ],
 )
-def test_compressed_skip_on_encoder(exclude_encoder, expected):
+def test_compressed_skip_on_encoder(compression, expected):
     app = Starlette()
 
-    app.add_middleware(CompressionMiddleware, exclude_encoder=exclude_encoder)
+    app.add_middleware(CompressionMiddleware, compression=compression)
 
     @app.route("/")
     def homepage(request):
@@ -162,3 +164,41 @@ def test_compressed_skip_on_encoder(exclude_encoder, expected):
     client = TestClient(app)
     response = client.get("/", headers={"accept-encoding": "br,gzip,deflate"})
     assert response.headers["Content-Encoding"] == expected
+
+
+@pytest.mark.parametrize(
+    "compression,header,expected",
+    [
+        # deflate preferred but only gzip available
+        ([Compression.gzip], "deflate, gzip;q=0.8", Compression.gzip),
+        # deflate preferred and available
+        (
+            [Compression.gzip, Compression.deflate],
+            "deflate, gzip;q=0.8",
+            Compression.deflate,
+        ),
+        # asking for deflate or gzip but only br is available
+        ([Compression.br], "deflate, gzip;q=0.8", None),
+        # no accepted-encoding
+        ([Compression.br], "", None),
+        # br is prefered and available
+        (
+            [Compression.gzip, Compression.br, Compression.deflate],
+            "br;q=1.0, gzip;q=0.8",
+            Compression.br,
+        ),
+        # br and gzip are equally preferred but gzip is the first available
+        ([Compression.gzip, Compression.br], "br;q=1.0, gzip;q=1.0", Compression.gzip),
+        # br and gzip are equally preferred but br is the first available
+        ([Compression.br, Compression.gzip], "br;q=1.0, gzip;q=1.0", Compression.br),
+        # br and gzip are available and client has no preference
+        ([Compression.br, Compression.gzip], "*;q=1.0", Compression.br),
+        # invalid br quality so ignored
+        ([Compression.br, Compression.gzip], "br;q=aaa, gzip", Compression.gzip),
+        # br quality is set to 0
+        ([Compression.br, Compression.gzip], "br;q=0.0, gzip", Compression.gzip),
+    ],
+)
+def test_get_compression_backend(compression, header, expected):
+    """Make sure we use the right compression."""
+    assert get_compression_backend(header, compression) == expected
