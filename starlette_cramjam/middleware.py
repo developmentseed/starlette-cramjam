@@ -8,7 +8,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from starlette_cramjam.compression import Compression
 
-ACCEPT_ENCODING_PATTERN = r"^(?P<compression>\w+)(;q=(?P<qvalue>[0-1]*([.][0-9]+)?))?"
+ACCEPT_ENCODING_PATTERN = r"^(?P<compression>[a-z]+|\*)(;q=(?P<qvalue>[\w,.]+))?"
 
 DEFAULT_BACKENDS = [
     Compression.gzip,
@@ -18,7 +18,7 @@ DEFAULT_BACKENDS = [
 
 
 def get_compression_backend(
-    accepted_encoding: str, compression: List[Compression]
+    accepted_encoding: str, compressions: List[Compression]
 ) -> Optional[Compression]:
     """Return Compression backend based on default compression and accepted preference.
 
@@ -28,25 +28,37 @@ def get_compression_backend(
 
     """
     # Parse Accepted-Encoding value `gzip, deflate;q=0.1`
-    encoding_values = []
+    encoding_values = {}
     for encoding in accepted_encoding.replace(" ", "").split(","):
         matched = re.match(ACCEPT_ENCODING_PATTERN, encoding)
         if matched:
             name, q = matched.groupdict().values()
-            quality = float(q) if q else 1.0
-            encoding_values.append((name, quality))
+            try:
+                quality = float(q) if q else 1.0
+            except ValueError:
+                quality = 0
 
+            # if quality is 0 we ignore encoding
+            if quality:
+                encoding_values[name] = quality
+
+    print(encoding_values)
     # Create Preference matrix
     encoding_preference = {
-        v: [n for (n, q) in encoding_values if q == v]
-        for v in sorted({q for _, q in encoding_values}, reverse=True)
+        v: [n for (n, q) in encoding_values.items() if q == v]
+        for v in sorted({q for q in encoding_values.values()}, reverse=True)
     }
 
     # Loop through available compression and encoding preference
     for _, pref in encoding_preference.items():
-        for backend in compression:
+        for backend in compressions:
             if backend.name in pref:
                 return backend
+
+    # If no specified encoding is supported but "*" is accepted,
+    # take one of the available compressions.
+    if "*" in encoding_values and compressions:
+        return compressions[0]
 
     return None
 

@@ -191,6 +191,12 @@ def test_compressed_skip_on_encoder(compression, expected):
         ([Compression.gzip, Compression.br], "br;q=1.0, gzip;q=1.0", Compression.gzip),
         # br and gzip are equally preferred but br is the first available
         ([Compression.br, Compression.gzip], "br;q=1.0, gzip;q=1.0", Compression.br),
+        # br and gzip are available and client has no preference
+        ([Compression.br, Compression.gzip], "*;q=1.0", Compression.br),
+        # invalid br quality so ignored
+        ([Compression.br, Compression.gzip], "br;q=aaa, gzip", Compression.gzip),
+        # br quality is set to 0
+        ([Compression.br, Compression.gzip], "br;q=0.0, gzip", Compression.gzip),
     ],
 )
 def test_get_compression_backend(compression, header, expected):
