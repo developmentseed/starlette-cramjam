@@ -1,5 +1,5 @@
 
-## 0.3.0 (TBD)
+## 0.3.0 (2022-06-07)
 
 - add `compression` parameter to define compression backend and order of preference
 - defaults to `gzip` -> `deflate` -> `br` order of preference (instead of `br` -> `gzip` -> `deflate`)
