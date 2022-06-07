@@ -42,7 +42,6 @@ def get_compression_backend(
             if quality:
                 encoding_values[name] = quality
 
-    print(encoding_values)
     # Create Preference matrix
     encoding_preference = {
         v: [n for (n, q) in encoding_values.items() if q == v]
