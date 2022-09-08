@@ -1,4 +1,8 @@
 
+## 0.3.1 (2022-09-08)
+
+- update `pyrus-cramjam` version requirement to allow `2.5.0`
+
 ## 0.3.0 (2022-06-07)
 
 - add `compression` parameter to define compression backend and order of preference
