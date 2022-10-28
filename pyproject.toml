@@ -2,7 +2,7 @@
 name = "starlette-cramjam"
 description = "Cramjam integration for Starlette ASGI framework."
 readme = "README.md"
-requires-python = ">=3.6"
+requires-python = ">=3.7"
 license = {file = "LICENSE"}
 authors = [
     {name = "Vincent Sarago", email = "vincent@developmentseed.com"},
@@ -16,16 +16,17 @@ classifiers = [
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Typing :: Typed",
 ]
 dynamic = ["version"]
-dependencies = ["starlette", "cramjam>=2.4.0,<2.6"]
+dependencies = ["starlette", "cramjam>=2.4,<2.7"]
 
 [project.optional-dependencies]
 test = [
     "pytest",
     "pytest-cov",
-    "requests",
+    "httpx",
     "brotlipy",
 ]
 dev = [

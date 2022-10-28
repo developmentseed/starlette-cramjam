@@ -1,4 +1,8 @@
 
+## 0.3.2 (2022-10-28)
+
+- add python 3.11 and update pyrus-cramjam version dependency
+
 ## 0.3.1 (2022-09-08)
 
 - update `pyrus-cramjam` version requirement to allow `2.5.0`
