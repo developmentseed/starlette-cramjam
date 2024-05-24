@@ -3,6 +3,7 @@
 This tests are the same as the ones from starlette.tests.middleware.test_gzip but using multiple encoding.
 
 """
+
 import pytest
 from starlette.applications import Starlette
 from starlette.responses import PlainTextResponse, Response, StreamingResponse

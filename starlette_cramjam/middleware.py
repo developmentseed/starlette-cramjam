@@ -45,7 +45,7 @@ def get_compression_backend(
     # Create Preference matrix
     encoding_preference = {
         v: [n for (n, q) in encoding_values.items() if q == v]
-        for v in sorted({q for q in encoding_values.values()}, reverse=True)
+        for v in sorted({q for q in encoding_values.values()}, reverse=True)  # noqa: C416
     }
 
     # Loop through available compression and encoding preference
@@ -96,7 +96,7 @@ class CompressionMiddleware:
             accepted_encoding = headers.get("Accept-Encoding", "")
 
             if self.exclude_path:
-                skip = any([x.fullmatch(scope["path"]) for x in self.exclude_path])
+                skip = any(x.fullmatch(scope["path"]) for x in self.exclude_path)
             else:
                 skip = False
 
