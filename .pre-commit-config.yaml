@@ -1,32 +1,26 @@
 repos:
-  - repo: https://github.com/psf/black
-    rev: 22.3.0
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.12.1
     hooks:
-      - id: black
-        language_version: python
+      - id: validate-pyproject
 
   - repo: https://github.com/PyCQA/isort
-    rev: 5.4.2
+    rev: 5.13.2
     hooks:
       - id: isort
         language_version: python
 
-  - repo: https://github.com/PyCQA/flake8
-    rev: 3.8.3
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.3.5
     hooks:
-      - id: flake8
-        language_version: python
-
-  - repo: https://github.com/PyCQA/pydocstyle
-    rev: 6.1.1
-    hooks:
-      - id: pydocstyle
-        language_version: python
-        additional_dependencies:
-          - toml
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v0.960
+    rev: v1.9.0
     hooks:
       - id: mypy
         language_version: python
+        # No reason to run if only tests have changed. They intentionally break typing.
+        exclude: tests/.*
