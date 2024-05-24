@@ -80,7 +80,6 @@ jobs:
       - name: Set module version
         id: module
         run: |
-          hatch --quiet version
           echo version=$(python -c'import starlette_cramjam; print(starlette_cramjam.__version__)') >> $GITHUB_OUTPUT
 
       - name: Build and publish
