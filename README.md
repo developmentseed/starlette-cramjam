@@ -56,6 +56,7 @@ $ pip install https://github.com/developmentseed/starlette-cramjam.git
 The following arguments are supported:
 
 - **compression** (List of Compression) - List of available compression algorithm. **This list also defines the order of preference**. Defaults to `[Compression.gzip, Compression.deflate, Compression.br]`,
+- **compression_level** (Integer) - Compression level to use, form `0` (None) to `11` (High). Defaults to cramjam internal defaults for each compression backend.
 - **minimum_size** (Integer) - Do not compress responses that are smaller than this minimum size in bytes. Defaults to `500`.
 - **exclude_path** (Set of string) - Do not compress responses in response to specific `path` requests. Entries have to be valid regex expressions. Defaults to `{}`.
 - **exclude_mediatype** (Set of string) - Do not compress responses of specific media type (e.g `image/png`). Defaults to `{}`.
@@ -66,21 +67,22 @@ The following arguments are supported:
 import uvicorn
 
 from starlette.applications import Starlette
+from starlette.middleware import Middleware
 from starlette.responses import PlainTextResponse
+from starlette.routing import Route
 
 from starlette_cramjam.middleware import CompressionMiddleware
 
-# create application
-app = Starlette()
-
-# register the CompressionMiddleware
-app.add_middleware(CompressionMiddleware)
-
-
-@app.route("/")
 def index(request):
     return PlainTextResponse("Hello World")
 
+
+app = Starlette(
+    routes=[Route("/", endpoint=index)],
+    middleware=[
+        Middleware(CompressionMiddleware),
+    ],
+)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
@@ -92,40 +94,89 @@ if __name__ == "__main__":
 import uvicorn
 
 from starlette.applications import Starlette
+from starlette.middleware import Middleware
 from starlette.responses import PlainTextResponse, Response
+from starlette.routing import Route
 
 from starlette_cramjam.compression import Compression
 from starlette_cramjam.middleware import CompressionMiddleware
 
-# create application
-app = Starlette()
-
-# register the CompressionMiddleware
-app.add_middleware(
-    CompressionMiddleware,
-    compression=[Compression.gzip],  # Only support `gzip`
-    minimum_size=0,  # should compress everything
-    exclude_path={"^/foo$"},  # do not compress response for the `/foo` request
-    exclude_mediatype={"image/jpeg"},  # do not compress jpeg
-)
-
-
-@app.route("/")
 def index(request):
     return PlainTextResponse("Hello World")
 
-@app.route("/image")
-def foo(request):
+def img(request):
     return Response(b"This is a fake body", status_code=200, media_type="image/jpeg")
 
-@app.route("/foo")
 def foo(request):
     return PlainTextResponse("Do not compress me.")
 
 
+app = Starlette(
+    routes=[
+        Route("/", endpoint=index),
+        Route("/image", endpoint=img),
+        Route("/foo", endpoint=foo),
+    ],
+    middleware=[
+        Middleware(
+            CompressionMiddleware,
+            compression=[Compression.gzip],  # Only support `gzip`
+            compression_level=6,  # Compression level to use
+            minimum_size=0,  # should compress everything
+            exclude_path={"^/foo$"},  # do not compress response for the `/foo` request
+            exclude_mediatype={"image/jpeg"},  # do not compress jpeg
+        ),
+    ],
+)
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
 ```
+
+## Performance
+
+```python
+import gzip
+import sys
+
+import brotli
+import cramjam
+import httpx
+
+page = httpx.get("https://github.com/developmentseed/starlette-cramjam").content
+
+len(page)
+# 347686
+
+%timeit brotli.compress(page, quality=4)
+# 1.77 ms ± 19.7 µs per loop (mean ± std. dev. of 7 runs, 1000 loops each)
+
+sys.getsizeof(brotli.compress(page, quality=4))
+# 48766
+
+%timeit gzip.compress(page, compresslevel=6)
+# 4.62 ms ± 28 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+
+sys.getsizeof(gzip.compress(page, compresslevel=6))
+# 54888
+
+# ------------
+# With Cramjam
+# ------------
+%timeit cramjam.gzip.compress(page, level=4)
+# 2.38 ms ± 34 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+
+cramjam.gzip.compress(page, level=4).len()
+# 56853
+
+%timeit cramjam.brotli.compress(page, level=4)
+# 2.3 ms ± 48.5 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+
+cramjam.brotli.compress(page, level=4).len()
+# 48742
+```
+
+Ref: https://github.com/fullonic/brotli-asgi?tab=readme-ov-file#performance
 
 ## Changes
 

@@ -72,6 +72,7 @@ class CompressionMiddleware:
         compression: Optional[List[Compression]] = None,
         exclude_path: Optional[Set[str]] = None,
         exclude_mediatype: Optional[Set[str]] = None,
+        compression_level: Optional[int] = None,
     ) -> None:
         """Init CompressionMiddleware.
 
@@ -81,6 +82,7 @@ class CompressionMiddleware:
             compression (list): List of available compression backend. Order will define the backend preference.
             exclude_path (set): Set of regex expression to use to exclude compression for request path. Defaults to {}.
             exclude_mediatype (set): Set of media-type for which to exclude compression. Defaults to {}.
+            compression_level (int): Compression level to use.
 
         """
         self.app = app
@@ -88,6 +90,7 @@ class CompressionMiddleware:
         self.exclude_path = {re.compile(p) for p in exclude_path or set()}
         self.exclude_mediatype = exclude_mediatype or set()
         self.compression = compression or DEFAULT_BACKENDS
+        self.compression_level = compression_level
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Handle call."""
@@ -102,9 +105,14 @@ class CompressionMiddleware:
 
             backend = get_compression_backend(accepted_encoding, self.compression)
             if not skip and backend:
+                if self.compression_level is not None:
+                    compressor = backend.compress.Compressor(level=self.compression_level)
+                else:
+                    compressor = backend.compress.Compressor()
+
                 responder = CompressionResponder(
                     self.app,
-                    backend.compress.Compressor(),
+                    compressor,
                     backend.name,
                     self.minimum_size,
                     self.exclude_mediatype,
@@ -170,13 +178,11 @@ class CompressionResponder:
             elif not more_body:
                 # Standard compressed response.
                 self.compressor.compress(body)
-                body = bytes(self.compressor.finish())
-
+                body = self.compressor.finish()
                 headers["Content-Encoding"] = self.encoding_name
-                headers["Content-Length"] = str(len(body))
+                headers["Content-Length"] = str(body.len())
                 headers.add_vary_header("Accept-Encoding")
-                message["body"] = body
-
+                message["body"] = bytes(body)
                 await self.send(self.initial_message)
                 await self.send(message)
 
