@@ -1,3 +1,7 @@
+## 0.4.0 (2024-10-17)
+
+- add `compression_level` option
+- update `cramjam` version limit to `cramjam>=2.4,<2.10`
 
 ## 0.3.3 (2024-05-24)
 

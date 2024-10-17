@@ -4,9 +4,13 @@ This tests are the same as the ones from starlette.tests.middleware.test_gzip bu
 
 """
 
+import sys
+
 import pytest
 from starlette.applications import Starlette
+from starlette.middleware import Middleware
 from starlette.responses import PlainTextResponse, Response, StreamingResponse
+from starlette.routing import Route
 from starlette.testclient import TestClient
 
 from starlette_cramjam.compression import Compression
@@ -15,28 +19,46 @@ from starlette_cramjam.middleware import CompressionMiddleware, get_compression_
 
 @pytest.mark.parametrize("method", ["br", "gzip", "deflate"])
 def test_compressed_responses(method):
-    app = Starlette()
-
-    app.add_middleware(CompressionMiddleware)
-
-    @app.route("/")
     def homepage(request):
         return PlainTextResponse("x" * 4000, status_code=200)
+
+    app = Starlette(
+        routes=[Route("/", endpoint=homepage)],
+        middleware=[
+            Middleware(CompressionMiddleware),
+        ],
+    )
 
     client = TestClient(app)
     response = client.get("/", headers={"accept-encoding": method})
     assert response.status_code == 200
     assert response.text == "x" * 4000
     assert response.headers["Content-Encoding"] == method
-    assert int(response.headers["Content-Length"]) < 4000
+    assert sys.getsizeof(response.content) > int(response.headers["Content-Length"])
+
+
+@pytest.mark.parametrize("method", ["br", "gzip", "deflate"])
+def test_compression_level(method):
+    def homepage(request):
+        return PlainTextResponse("x" * 4000, status_code=200)
+
+    app = Starlette(
+        routes=[Route("/", endpoint=homepage)],
+        middleware=[
+            Middleware(CompressionMiddleware, compression_level=3),
+        ],
+    )
+
+    client = TestClient(app)
+    response = client.get("/", headers={"accept-encoding": method})
+    assert response.status_code == 200
+    assert response.text == "x" * 4000
+    assert response.headers["Content-Encoding"] == method
+    assert sys.getsizeof(response.content) > int(response.headers["Content-Length"])
 
 
 @pytest.mark.parametrize("method", ["br", "gzip", "deflate"])
 def test_streaming_response(method):
-    app = Starlette()
-    app.add_middleware(CompressionMiddleware, minimum_size=1)
-
-    @app.route("/")
     def homepage(request):
         async def generator(bytes, count):
             for _ in range(count):
@@ -44,6 +66,13 @@ def test_streaming_response(method):
 
         streaming = generator(bytes=b"x" * 400, count=10)
         return StreamingResponse(streaming, status_code=200)
+
+    app = Starlette(
+        routes=[Route("/", endpoint=homepage)],
+        middleware=[
+            Middleware(CompressionMiddleware, minimum_size=1),
+        ],
+    )
 
     client = TestClient(app)
 
@@ -55,13 +84,15 @@ def test_streaming_response(method):
 
 
 def test_not_in_accept_encoding():
-    app = Starlette()
-
-    app.add_middleware(CompressionMiddleware)
-
-    @app.route("/")
     def homepage(request):
         return PlainTextResponse("x" * 4000, status_code=200)
+
+    app = Starlette(
+        routes=[Route("/", endpoint=homepage)],
+        middleware=[
+            Middleware(CompressionMiddleware),
+        ],
+    )
 
     client = TestClient(app)
     response = client.get("/", headers={"accept-encoding": "identity"})
@@ -72,13 +103,15 @@ def test_not_in_accept_encoding():
 
 
 def test_ignored_for_small_responses():
-    app = Starlette()
-
-    app.add_middleware(CompressionMiddleware)
-
-    @app.route("/")
     def homepage(request):
         return PlainTextResponse("OK", status_code=200)
+
+    app = Starlette(
+        routes=[Route("/", endpoint=homepage)],
+        middleware=[
+            Middleware(CompressionMiddleware),
+        ],
+    )
 
     client = TestClient(app)
     response = client.get("/", headers={"accept-encoding": "gzip"})
@@ -90,17 +123,21 @@ def test_ignored_for_small_responses():
 
 @pytest.mark.parametrize("method", ["br", "gzip", "deflate"])
 def test_compressed_skip_on_content_type(method):
-    app = Starlette()
-
-    app.add_middleware(CompressionMiddleware, exclude_mediatype={"image/png"})
-
-    @app.route("/")
     def homepage(request):
         return Response(b"foo" * 1000, status_code=200, media_type="image/png")
 
-    @app.route("/foo")
     def foo(request):
         return Response(b"foo" * 1000, status_code=200, media_type="image/jpeg")
+
+    app = Starlette(
+        routes=[
+            Route("/", endpoint=homepage),
+            Route("/foo", endpoint=foo),
+        ],
+        middleware=[
+            Middleware(CompressionMiddleware, exclude_mediatype={"image/png"}),
+        ],
+    )
 
     client = TestClient(app)
     response = client.get("/", headers={"accept-encoding": method})
@@ -114,21 +151,25 @@ def test_compressed_skip_on_content_type(method):
 
 @pytest.mark.parametrize("method", ["br", "gzip", "deflate"])
 def test_compressed_skip_on_path(method):
-    app = Starlette()
-
-    app.add_middleware(CompressionMiddleware, exclude_path={"^/f.+"}, minimum_size=0)
-
-    @app.route("/")
     def homepage(request):
         return PlainTextResponse("yep", status_code=200)
 
-    @app.route("/foo")
     def foo(request):
         return Response("also yep but with /foo", status_code=200)
 
-    @app.route("/dontskip/foo")
     def foo2(request):
         return Response("also yep but with /dontskip/foo", status_code=200)
+
+    app = Starlette(
+        routes=[
+            Route("/", endpoint=homepage),
+            Route("/foo", endpoint=foo),
+            Route("/dontskip/foo", endpoint=foo2),
+        ],
+        middleware=[
+            Middleware(CompressionMiddleware, exclude_path={"^/f.+"}, minimum_size=0),
+        ],
+    )
 
     client = TestClient(app)
     response = client.get("/", headers={"accept-encoding": method})
@@ -154,13 +195,17 @@ def test_compressed_skip_on_path(method):
     ],
 )
 def test_compressed_skip_on_encoder(compression, expected):
-    app = Starlette()
-
-    app.add_middleware(CompressionMiddleware, compression=compression)
-
-    @app.route("/")
     def homepage(request):
         return PlainTextResponse("x" * 4000, status_code=200)
+
+    app = Starlette(
+        routes=[
+            Route("/", endpoint=homepage),
+        ],
+        middleware=[
+            Middleware(CompressionMiddleware, compression=compression),
+        ],
+    )
 
     client = TestClient(app)
     response = client.get("/", headers={"accept-encoding": "br,gzip,deflate"})

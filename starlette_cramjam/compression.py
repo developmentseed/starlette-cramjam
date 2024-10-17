@@ -6,9 +6,9 @@ from types import DynamicClassAttribute
 import cramjam
 
 compression_backends = {
-    "br": cramjam.brotli,
-    "deflate": cramjam.deflate,
-    "gzip": cramjam.gzip,
+    "br": cramjam.brotli,  # min: 0, max: 11, default: 11
+    "deflate": cramjam.deflate,  # min: 0, max: 9, default: 6
+    "gzip": cramjam.gzip,  # min: 0, max: 9, default: 6
 }
 
 
