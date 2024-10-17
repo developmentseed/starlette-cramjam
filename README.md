@@ -163,11 +163,11 @@ sys.getsizeof(gzip.compress(page, compresslevel=6))
 # ------------
 # With Cramjam
 # ------------
-%timeit cramjam.gzip.compress(page, level=4)
-# 2.38 ms ± 34 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
+%timeit cramjam.gzip.compress(page, level=6)
+# 4.12 ms ± 57.3 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
 
-cramjam.gzip.compress(page, level=4).len()
-# 56853
+cramjam.gzip.compress(page, level=6).len()
+# 55221
 
 %timeit cramjam.brotli.compress(page, level=4)
 # 2.3 ms ± 48.5 µs per loop (mean ± std. dev. of 7 runs, 100 loops each)
