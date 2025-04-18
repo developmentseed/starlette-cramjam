@@ -1,3 +1,8 @@
+## 0.5.0 (2025-04-18)
+
+- add support for `zstd` compression
+- remove support for python 3.7 and 3.
+
 ## 0.4.0 (2024-10-17)
 
 - add `compression_level` option

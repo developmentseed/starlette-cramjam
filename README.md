@@ -27,9 +27,9 @@
 
 ---
 
-The `starlette-cramjam` middleware aims to provide a unique Compression middleware to support **Brotli**, **GZip** and **Deflate** compression algorithms with a minimal requirement.
+The `starlette-cramjam` middleware aims to provide a unique Compression middleware to support **Brotli**, **GZip**, **Deflate** and **ZSTD** compression algorithms with a minimal requirement.
 
-The middleware will compress responses for any request that includes "br", "gzip" or "deflate" in the Accept-Encoding header.
+The middleware will compress responses for any request that includes "br", "gzip", "deflate" or "zstd" in the Accept-Encoding header.
 
 As for the official `Starlette` middleware, the one provided by `starlette-cramjam` will handle both standard and streaming responses.
 
@@ -55,7 +55,7 @@ $ pip install https://github.com/developmentseed/starlette-cramjam.git
 
 The following arguments are supported:
 
-- **compression** (List of Compression) - List of available compression algorithm. **This list also defines the order of preference**. Defaults to `[Compression.gzip, Compression.deflate, Compression.br]`,
+- **compression** (List of Compression) - List of available compression algorithm. **This list also defines the order of preference**. Defaults to `[Compression.gzip, Compression.deflate, Compression.br, Compression.zstd]`,
 - **compression_level** (Integer) - Compression level to use, form `0` (None) to `11` (High). Defaults to cramjam internal defaults for each compression backend.
 - **minimum_size** (Integer) - Do not compress responses that are smaller than this minimum size in bytes. Defaults to `500`.
 - **exclude_path** (Set of string) - Do not compress responses in response to specific `path` requests. Entries have to be valid regex expressions. Defaults to `{}`.
