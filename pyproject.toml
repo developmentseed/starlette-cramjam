@@ -12,16 +12,15 @@ classifiers = [
     "Intended Audience :: Information Technology",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3.7",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Typing :: Typed",
 ]
 dynamic = ["version"]
-dependencies = ["starlette", "cramjam>=2.4,<2.10"]
+dependencies = ["starlette", "cramjam>=2.4,<2.11"]
 
 [project.optional-dependencies]
 test = [
@@ -29,6 +28,7 @@ test = [
     "pytest-cov",
     "httpx",
     "brotlipy",
+    "zstandard",
 ]
 dev = [
     "pre-commit",

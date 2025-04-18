@@ -16,8 +16,10 @@ from starlette.testclient import TestClient
 from starlette_cramjam.compression import Compression
 from starlette_cramjam.middleware import CompressionMiddleware, get_compression_backend
 
+available_schemes = ["br", "gzip", "deflate", "zstd"]
 
-@pytest.mark.parametrize("method", ["br", "gzip", "deflate"])
+
+@pytest.mark.parametrize("method", available_schemes)
 def test_compressed_responses(method):
     def homepage(request):
         return PlainTextResponse("x" * 4000, status_code=200)
@@ -37,7 +39,7 @@ def test_compressed_responses(method):
     assert sys.getsizeof(response.content) > int(response.headers["Content-Length"])
 
 
-@pytest.mark.parametrize("method", ["br", "gzip", "deflate"])
+@pytest.mark.parametrize("method", available_schemes)
 def test_compression_level(method):
     def homepage(request):
         return PlainTextResponse("x" * 4000, status_code=200)
@@ -57,7 +59,7 @@ def test_compression_level(method):
     assert sys.getsizeof(response.content) > int(response.headers["Content-Length"])
 
 
-@pytest.mark.parametrize("method", ["br", "gzip", "deflate"])
+@pytest.mark.parametrize("method", available_schemes)
 def test_streaming_response(method):
     def homepage(request):
         async def generator(bytes, count):
@@ -121,7 +123,7 @@ def test_ignored_for_small_responses():
     assert int(response.headers["Content-Length"]) == 2
 
 
-@pytest.mark.parametrize("method", ["br", "gzip", "deflate"])
+@pytest.mark.parametrize("method", available_schemes)
 def test_compressed_skip_on_content_type(method):
     def homepage(request):
         return Response(b"foo" * 1000, status_code=200, media_type="image/png")
@@ -149,7 +151,7 @@ def test_compressed_skip_on_content_type(method):
     assert response.headers["Content-Encoding"] == method
 
 
-@pytest.mark.parametrize("method", ["br", "gzip", "deflate"])
+@pytest.mark.parametrize("method", available_schemes)
 def test_compressed_skip_on_path(method):
     def homepage(request):
         return PlainTextResponse("yep", status_code=200)

@@ -14,6 +14,7 @@ DEFAULT_BACKENDS = [
     Compression.gzip,
     Compression.deflate,
     Compression.br,
+    Compression.zstd,
 ]
 
 
