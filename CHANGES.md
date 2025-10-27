@@ -1,3 +1,9 @@
+
+## 0.5.1 (2025-10-27)
+
+- add python 3.14 support
+- add `py.typed` file
+
 ## 0.5.0 (2025-04-18)
 
 - add support for `zstd` compression
