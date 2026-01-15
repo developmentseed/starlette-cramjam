@@ -2,7 +2,7 @@
 name = "starlette-cramjam"
 description = "Cramjam integration for Starlette ASGI framework."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = {file = "LICENSE"}
 authors = [
     {name = "Vincent Sarago", email = "vincent@developmentseed.com"},
