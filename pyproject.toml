@@ -12,8 +12,6 @@ classifiers = [
     "Intended Audience :: Information Technology",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -23,36 +21,33 @@ classifiers = [
 dynamic = ["version"]
 dependencies = ["starlette", "cramjam>=2.4,<2.12"]
 
-[project.optional-dependencies]
-test = [
+[dependency-groups]
+dev = [
     "pytest",
     "pytest-cov",
     "httpx",
     "brotlipy",
     "zstandard",
 ]
-dev = [
-    "pre-commit",
-    "bump-my-version",
+deploy = [
+    "hatch",
 ]
 
 [project.urls]
 Source = "https://github.com/developmentseed/starlette-cramjam"
 
 [build-system]
-requires = ["flit>=3.2,<4"]
-build-backend = "flit_core.buildapi"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.flit.module]
-name = "starlette_cramjam"
+[tool.hatch.version]
+path = "starlette_cramjam/__init__.py"
 
-[tool.flit.sdist]
-exclude = [
-    "tests/",
-    ".github/",
-    "CHANGES.md",
-    "CONTRIBUTING.md",
-]
+[tool.hatch.build.targets.sdist]
+only-include = ["starlette_cramjam/"]
+
+[tool.hatch.build.targets.wheel]
+only-include = ["starlette_cramjam/"]
 
 [tool.isort]
 profile = "black"
