@@ -1,4 +1,9 @@
 
+## Unreleased 
+
+- remove support for python 3.9 and 3.10
+- use `uv` for project managment
+
 ## 0.5.1 (2025-10-27)
 
 - add python 3.14 support
