@@ -1,12 +1,17 @@
 """starlette_cramjam.middleware."""
 
 import re
-from typing import Any, List, Optional, Set
+from typing import TYPE_CHECKING
 
 from starlette.datastructures import Headers, MutableHeaders
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from starlette_cramjam.compression import Compression
+
+if TYPE_CHECKING:
+    from typing import Any
+
+    from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
 
 ACCEPT_ENCODING_PATTERN = r"^(?P<compression>[a-z]+|\*)(;q=(?P<qvalue>[\w,.]+))?"
 
@@ -19,8 +24,8 @@ DEFAULT_BACKENDS = [
 
 
 def get_compression_backend(
-    accepted_encoding: str, compressions: List[Compression]
-) -> Optional[Compression]:
+    accepted_encoding: str, compressions: list[Compression]
+) -> Compression | None:
     """Return Compression backend based on default compression and accepted preference.
 
     Links:
@@ -70,10 +75,10 @@ class CompressionMiddleware:
         self,
         app: ASGIApp,
         minimum_size: int = 500,
-        compression: Optional[List[Compression]] = None,
-        exclude_path: Optional[Set[str]] = None,
-        exclude_mediatype: Optional[Set[str]] = None,
-        compression_level: Optional[int] = None,
+        compression: list[Compression] | None = None,
+        exclude_path: set[str] | None = None,
+        exclude_mediatype: set[str] | None = None,
+        compression_level: int | None = None,
     ) -> None:
         """Init CompressionMiddleware.
 
@@ -133,7 +138,7 @@ class CompressionResponder:
         compressor: Any,
         encoding_name: str,
         minimum_size: int,
-        exclude_mediatype: Set[str],
+        exclude_mediatype: set[str],
     ) -> None:
         """Init."""
         self.app = app
