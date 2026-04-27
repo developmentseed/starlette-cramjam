@@ -1,6 +1,10 @@
 
 ## Unreleased 
 
+## 0.7.0 (2026-04-27)
+
+- change: skip compression for `204 NO_CONTENT` response
+
 ## 0.6.0 (2026-01-15)
 
 - remove support for python 3.9 and 3.10
