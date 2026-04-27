@@ -178,6 +178,11 @@ class CompressionResponder:
                 await self.send(self.initial_message)
                 await self.send(message)
 
+            elif self.initial_message.get("status") == 204:
+                # Don't apply compression to 204 No Content responses.
+                await self.send(self.initial_message)
+                await self.send(message)
+
             elif len(body) < self.minimum_size and not more_body:
                 # Don't apply compression to small outgoing responses.
                 await self.send(self.initial_message)

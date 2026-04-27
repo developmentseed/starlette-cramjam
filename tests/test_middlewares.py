@@ -250,3 +250,23 @@ def test_compressed_skip_on_encoder(compression, expected):
 def test_get_compression_backend(compression, header, expected):
     """Make sure we use the right compression."""
     assert get_compression_backend(header, compression) == expected
+
+
+@pytest.mark.parametrize("method", available_schemes)
+def test_compressed_skip_no_content(method):
+    def homepage(request):
+        return Response(content=None, status_code=204)
+
+    app = Starlette(
+        routes=[
+            Route("/", endpoint=homepage),
+        ],
+        middleware=[
+            Middleware(CompressionMiddleware, minimum_size=0),
+        ],
+    )
+
+    client = TestClient(app)
+    response = client.get("/", headers={"accept-encoding": method})
+    assert response.status_code == 204
+    assert "Content-Encoding" not in response.headers
