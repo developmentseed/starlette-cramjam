@@ -26,7 +26,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "httpx",
-    "brotlipy",
+    "brotli>=1.2.1",
     "zstandard",
 ]
 deploy = [
