@@ -19,7 +19,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dynamic = ["version"]
-dependencies = ["starlette", "cramjam>=2.4,<2.12"]
+dependencies = ["starlette", "cramjam>=2.4,<2.15"]
 
 [dependency-groups]
 dev = [
