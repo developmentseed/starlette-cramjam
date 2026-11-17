@@ -1,5 +1,8 @@
 
-## Unreleased 
+## Unreleased
+
+- fix: skip compression when the response already has a `Content-Encoding` header (other than `identity`)
+- fix: don't compress the remaining chunks of a streaming response that was excluded from compression
 
 ## 0.7.0 (2026-04-27)
 
