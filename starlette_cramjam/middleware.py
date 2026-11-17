@@ -151,6 +151,7 @@ class CompressionResponder:
         self.send = unattached_send  # type: Send
         self.initial_message = {}  # type: Message
         self.started = False
+        self.passthrough = False
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         """Handle call."""
@@ -172,19 +173,20 @@ class CompressionResponder:
             more_body = message.get("more_body", False)
 
             headers = MutableHeaders(raw=self.initial_message["headers"])
+            content_encoding = headers.get("Content-Encoding", "").strip().lower()
 
-            if headers.get("Content-Type") in self.exclude_mediatype:
+            if (
+                # Don't re-encode responses which are already encoded
+                # (`identity` means no encoding, so we can compress those)
+                (content_encoding and content_encoding != "identity")
                 # Don't apply compression if mediatype should be excluded
-                await self.send(self.initial_message)
-                await self.send(message)
-
-            elif self.initial_message.get("status") == 204:
+                or headers.get("Content-Type") in self.exclude_mediatype
                 # Don't apply compression to 204 No Content responses.
-                await self.send(self.initial_message)
-                await self.send(message)
-
-            elif len(body) < self.minimum_size and not more_body:
+                or self.initial_message.get("status") == 204
                 # Don't apply compression to small outgoing responses.
+                or (len(body) < self.minimum_size and not more_body)
+            ):
+                self.passthrough = True
                 await self.send(self.initial_message)
                 await self.send(message)
 
@@ -214,6 +216,11 @@ class CompressionResponder:
                 await self.send(message)
 
         elif message_type == "http.response.body":
+            if self.passthrough:
+                # Remaining body in a response we decided not to compress.
+                await self.send(message)
+                return
+
             # Remaining body in streaming compressed response.
             body = message.get("body", b"")
             more_body = message.get("more_body", False)

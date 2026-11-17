@@ -270,3 +270,108 @@ def test_compressed_skip_no_content(method):
     response = client.get("/", headers={"accept-encoding": method})
     assert response.status_code == 204
     assert "Content-Encoding" not in response.headers
+
+
+@pytest.mark.parametrize("method", available_schemes)
+def test_skip_already_encoded(method):
+    """Responses with a Content-Encoding header should not be encoded again."""
+    import gzip
+    import os
+
+    data = os.urandom(4000)
+
+    def homepage(request):
+        return Response(
+            gzip.compress(data),
+            status_code=200,
+            headers={"Content-Encoding": "gzip"},
+        )
+
+    app = Starlette(
+        routes=[Route("/", endpoint=homepage)],
+        middleware=[Middleware(CompressionMiddleware)],
+    )
+
+    client = TestClient(app)
+    response = client.get("/", headers={"accept-encoding": method})
+    assert response.status_code == 200
+    assert response.headers["Content-Encoding"] == "gzip"
+    assert "Accept-Encoding" not in response.headers.get("Vary", "")
+    assert response.content == data
+
+
+@pytest.mark.parametrize("method", available_schemes)
+def test_skip_already_encoded_streaming(method):
+    """Streaming responses with a Content-Encoding header should not be encoded again."""
+    import gzip
+
+    payload = gzip.compress(b"x" * 4000)
+
+    def homepage(request):
+        async def generator():
+            for i in range(0, len(payload), 10):
+                yield payload[i : i + 10]
+
+        return StreamingResponse(
+            generator(), status_code=200, headers={"Content-Encoding": "gzip"}
+        )
+
+    app = Starlette(
+        routes=[Route("/", endpoint=homepage)],
+        middleware=[Middleware(CompressionMiddleware, minimum_size=1)],
+    )
+
+    client = TestClient(app)
+    response = client.get("/", headers={"accept-encoding": method})
+    assert response.status_code == 200
+    assert response.headers["Content-Encoding"] == "gzip"
+    assert response.content == b"x" * 4000
+
+
+@pytest.mark.parametrize("method", available_schemes)
+def test_compressed_skip_on_content_type_streaming(method):
+    """Excluded mediatype streaming responses should not be compressed."""
+
+    def homepage(request):
+        async def generator():
+            for _ in range(10):
+                yield b"x" * 400
+
+        return StreamingResponse(generator(), status_code=200, media_type="image/png")
+
+    app = Starlette(
+        routes=[Route("/", endpoint=homepage)],
+        middleware=[
+            Middleware(
+                CompressionMiddleware, minimum_size=1, exclude_mediatype={"image/png"}
+            ),
+        ],
+    )
+
+    client = TestClient(app)
+    response = client.get("/", headers={"accept-encoding": method})
+    assert response.status_code == 200
+    assert "Content-Encoding" not in response.headers
+    assert response.content == b"x" * 4000
+
+
+@pytest.mark.parametrize("method", available_schemes)
+@pytest.mark.parametrize("encoding", ["identity", "IDENTITY", " identity "])
+def test_compress_identity_encoded(method, encoding):
+    """Responses with `Content-Encoding: identity` are not encoded, so compress them."""
+
+    def homepage(request):
+        return PlainTextResponse(
+            "x" * 4000, status_code=200, headers={"Content-Encoding": encoding}
+        )
+
+    app = Starlette(
+        routes=[Route("/", endpoint=homepage)],
+        middleware=[Middleware(CompressionMiddleware)],
+    )
+
+    client = TestClient(app)
+    response = client.get("/", headers={"accept-encoding": method})
+    assert response.status_code == 200
+    assert response.headers["Content-Encoding"] == method
+    assert response.text == "x" * 4000
